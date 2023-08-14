@@ -1,7 +1,6 @@
 use html_parser::Dom;
 use std::error::Error;
 use std::fmt::Write;
-use tokio::task;
 
 #[derive(Debug)]
 struct Committer {
@@ -12,7 +11,7 @@ struct Committer {
 
 fn commit_streak(username: &str) -> Result<Committer, Box<dyn Error>> {
     let resp =
-        reqwest::blocking::get("https://streak-stats.demolab.com/?user=".to_owned() + username)?
+        reqwest::blocking::get(format!("https://streak-stats.demolab.com/?user={username}"))?
             .text()?;
 
     let dom = Dom::parse(&resp)?;
@@ -24,29 +23,25 @@ fn commit_streak(username: &str) -> Result<Committer, Box<dyn Error>> {
 
     Ok(Committer {
         username: String::from(username),
-        commit_streak: base.children[3].element().ok_or(err)?.children[1]
-            .element()
-            .ok_or(err)?
-            .children[0]
-            .element()
-            .ok_or(err)?
-            .children[0]
-            .text()
+        commit_streak: extract_dom_node_text(&base.children[3])
             .ok_or(err)?
             .trim()
             .parse()?,
-        longest_streak: base.children[4].element().ok_or(err)?.children[1]
-            .element()
-            .ok_or(err)?
-            .children[0]
-            .element()
-            .ok_or(err)?
-            .children[0]
-            .text()
+        longest_streak: extract_dom_node_text(&base.children[4])
             .ok_or(err)?
             .trim()
             .parse()?,
     })
+}
+
+fn extract_dom_node_text(node: &html_parser::Node) -> Option<&str> {
+    Some(
+        node.element()?.children[1].element()?.children[0]
+            .element()?
+            .children[0]
+            .text()?
+            .trim(),
+    )
 }
 
 fn print_commits() -> Result<String, Box<dyn Error>> {
@@ -71,13 +66,16 @@ fn print_commits() -> Result<String, Box<dyn Error>> {
     let mut s = String::new();
 
     for (i, comitter) in committers.iter().enumerate() {
+        let Committer {
+            username,
+            commit_streak,
+            longest_streak,
+        } = comitter;
+
         writeln!(
             s,
-            "#{}: {}'s commit streak: {} (longest: {})",
+            "#{}: {username}'s commit streak: {commit_streak} (longest: {longest_streak})",
             i + 1,
-            comitter.username,
-            comitter.commit_streak,
-            comitter.longest_streak
         )?;
     }
 
@@ -97,19 +95,15 @@ async fn main() {
         if let Some(text) = msg.text() {
             if text.contains("@OxidizeddBot") {
                 if text.to_lowercase().contains("commit streak") {
-                    let res: Result<String, String> = task::spawn_blocking(|| {
-                        let res: Result<String, Box<dyn Error>> = print_commits();
-                        match res {
-                            Ok(v) => Ok(v),
-                            Err(shit) => Err(shit.to_string()),
+                    let result = print_commits().map_err(|err| err.to_string());
+                    match result {
+                        Ok(bot_msg) => {
+                            bot.send_message(msg.chat.id, bot_msg).await?;
                         }
-                    })
-                    .await
-                    .unwrap();
-
-                    if res.is_ok() {
-                        bot.send_message(msg.chat.id, res.unwrap()).await?;
-                    }
+                        Err(err) => {
+                            log::error!("{err}");
+                        }
+                    };
                 } else if text.to_lowercase().contains("a dice") {
                     bot.send_dice(msg.chat.id).await?;
                 } else {
