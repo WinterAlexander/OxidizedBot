@@ -9,10 +9,11 @@ struct Committer {
     longest_streak: u32,
 }
 
-fn commit_streak(username: &str) -> Result<Committer, Box<dyn Error>> {
-    let resp =
-        reqwest::blocking::get(format!("https://streak-stats.demolab.com/?user={username}"))?
-            .text()?;
+async fn commit_streak(username: &str) -> Result<Committer, Box<dyn Error>> {
+    let resp = reqwest::get(format!("https://streak-stats.demolab.com/?user={username}"))
+        .await?
+        .text()
+        .await?;
 
     let dom = Dom::parse(&resp)?;
 
@@ -44,7 +45,7 @@ fn extract_dom_node_text(node: &html_parser::Node) -> Option<&str> {
     )
 }
 
-fn print_commits() -> Result<String, Box<dyn Error>> {
+async fn print_commits() -> Result<String, Box<dyn Error>> {
     let users = [
         "WinterAlexander",
         "MartensCedric",
@@ -54,7 +55,7 @@ fn print_commits() -> Result<String, Box<dyn Error>> {
     let mut committers: Vec<Committer> = Vec::new();
 
     for user in users {
-        committers.push(commit_streak(user)?);
+        committers.push(commit_streak(user).await?);
     }
 
     committers.sort_by(|c1, c2| {
@@ -95,7 +96,7 @@ async fn main() {
         if let Some(text) = msg.text() {
             if text.contains("@OxidizeddBot") {
                 if text.to_lowercase().contains("commit streak") {
-                    let result = print_commits().map_err(|err| err.to_string());
+                    let result = print_commits().await.map_err(|err| err.to_string());
                     match result {
                         Ok(bot_msg) => {
                             bot.send_message(msg.chat.id, bot_msg).await?;
