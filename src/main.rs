@@ -91,6 +91,8 @@ async fn print_commits() -> Result<String, Box<dyn Error>> {
         "MartensCedric",
         "RealWilliamWells",
         "Davidster",
+        "joshua-glazer",
+        "anchor-head"
     ];
     let mut committers: Vec<Committer> = Vec::new();
 
