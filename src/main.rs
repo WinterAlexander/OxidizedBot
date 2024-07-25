@@ -85,15 +85,20 @@ fn extract_dom_node_text(node: &html_parser::Node) -> Option<&str> {
     )
 }
 
-async fn print_commits() -> Result<String, Box<dyn Error>> {
-    let users = [
+async fn print_commits(adults: bool) -> Result<String, Box<dyn Error>> {
+    let users = if adults {[
         "WinterAlexander",
         "MartensCedric",
         "RealWilliamWells",
-        "Davidster",
-        "joshua-glazer",
-        "anchor-head"
-    ];
+        "Davidster"
+    ]} else {
+        [
+        "WinterAlexander",
+        "torvalds",
+        "tommyettinger",
+        "Anuken"
+        ]
+    };
     let mut committers: Vec<Committer> = Vec::new();
 
     for user in users {
@@ -140,7 +145,7 @@ async fn main() {
                 let lower_text = text.to_lowercase();
 
                 if lower_text.contains("commit streak") {
-                    let result = print_commits()
+                    let result = print_commits(lower_text.contains("adults") || lower_text.contains("big guys"))
                         .await.map_err(|err| err.to_string());
                     match result {
                         Ok(bot_msg) => {
