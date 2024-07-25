@@ -86,19 +86,17 @@ fn extract_dom_node_text(node: &html_parser::Node) -> Option<&str> {
 }
 
 async fn print_commits(adults: bool) -> Result<String, Box<dyn Error>> {
-    let users = if adults {[
+    let users = if !adults {[
         "WinterAlexander",
         "MartensCedric",
         "RealWilliamWells",
         "Davidster"
-    ]} else {
-        [
+    ]} else {[
         "WinterAlexander",
         "torvalds",
         "tommyettinger",
         "Anuken"
-        ]
-    };
+    ]};
     let mut committers: Vec<Committer> = Vec::new();
 
     for user in users {
